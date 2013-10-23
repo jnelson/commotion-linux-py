@@ -1,6 +1,9 @@
 #/usr/bin/python
 
-import dbus.mainloop.glib ; dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+try:
+    import dbus.mainloop.glib ; dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+except:
+    pass
 import glob
 import hashlib
 import os
@@ -11,15 +14,22 @@ import re
 import socket
 import struct
 import subprocess
-import syslog
+try:
+    import syslog
+except:
+    syslog = None
 import tempfile
 import time
 
 class CommotionCore():
 
-    def __init__(self, src='commotionc'):
-        self.olsrdconf = '/etc/olsrd/olsrd.conf'
-        self.profiledir = '/etc/commotion/profiles.d/'
+    def __init__(self, src='commotionc',
+            olsrdconf='/etc/olsrd/olsrd.conf',
+            olsrdpath='/usr/sbin/olsrd',
+            profiledir='/etc/commotion/profiles.d/'):
+        self.olsrdconf = olsrdconf
+        self.olsrdpath = olsrdpath
+        self.profiledir = profiledir
         self.logname = src
 
     def _ip_string2int(self, s):
@@ -45,16 +55,19 @@ class CommotionCore():
         return self._ip_int2string((hwip & ~netmaskint) + ipint)
 
     def log(self, msg):
-        syslog.openlog(self.logname)
-        syslog.syslog(msg)
-        syslog.closelog()
+        if syslog is not None:
+            syslog.openlog(self.logname)
+            syslog.syslog(msg)
+            syslog.closelog()
+        else:
+            print msg
 
     def selectInterface(self, preferred=None):
         interface = subprocess.check_output(['iw', 'dev']).split()
         interface = interface[interface.index('Interface') + 1]
         driver = os.listdir(os.path.join('/sys/class/net', interface, 'device/driver/module/drivers'))
         if not driver[0].split(':')[1] in ('ath5k', 'ath6kl', 'ath9k', 'ath9k_htc', 'b43', 'b43legacy', 'carl9170', 'iwlegacy', 'iwlwifi', 'mac80211_hwsim', 'orinoco', 'p54pci', 'p54spi', 'p54usb', 'rndis_wlan', 'rt61pci', 'rt73usb', 'rt2400pci', 'rt2500pci', 'rt2500usb', 'rt2800usb', 'rtl8187', 'wl1251', 'wl12xx', 'zd1211rw'):
-             self.log('WARNING: Driver for the selected interface does not support cfg80211, or ibss mode, or both!'
+             self.log('WARNING: Driver for the selected interface does not support cfg80211, or ibss mode, or both!')
         subprocess.check_output(['iw', 'list'])
         return interface
         
@@ -127,7 +140,7 @@ class CommotionCore():
     def startOlsrd(self, interface, conf):
         '''start the olsrd daemon'''
         self.log('start olsrd: ')
-        cmd = ['/usr/sbin/olsrd', '-i', interface, '-f', conf]
+        cmd = [self.olsrdpath, '-i', interface, '-f', conf]
         self.log(" ".join([x for x in cmd]))
         p = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
