@@ -56,6 +56,7 @@ class CommotionCore():
 
     def log(self, msg):
         if syslog is not None:
+            print "syslog: %s" % msg
             syslog.openlog(self.logname)
             syslog.syslog(msg)
             syslog.closelog()
@@ -106,7 +107,7 @@ class CommotionCore():
         '''get all the available mesh profiles and return as a dict'''
         profiles = dict()
         self.log('\n----------------------------------------')
-        self.log('Reading profiles:')
+        self.log('Reading profiles: %s' % self.profiledir)
         for f in glob.glob(self.profiledir + '*.profile'):
             profname = os.path.split(re.sub('\.profile$', '', f))[1]
             self.log('reading profile: "' + f + '"')
@@ -118,6 +119,7 @@ class CommotionCore():
 
     def updateProfile(self, profname, params):
         self.log('Updating profile \"' + profname + '\" ')
+        self.log('    params: %s' % params)
         fn = os.path.join(self.profiledir, profname + '.profile')
         if not os.access(fn, os.W_OK):
             self.log('Unable to write to ' + fn + ', so \"' + profname + '\" was not updated')
